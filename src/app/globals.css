@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/* ============================================================
+   ReadmeChess — Design System Inspired by Chess.com
+   ============================================================ */
+
+@theme {
+    /* Primary surfaces */
+    --color-deep-charcoal: #312e2b;
+    --color-near-black: #262421;
+    --color-darker-charcoal: #302e2b;
+
+    /* Accent */
+    --color-chess-green: #739552;
+    --color-chess-green-hover: #5d7a44;
+    --color-chess-green-active: #4b6037;
+    --color-bright-mint: #adfbd8;
+    --color-light-cyan: #ccffec;
+    --color-pale-turquoise: #eafffa;
+
+    /* Interactive */
+    --color-cream: #ebecd0;
+    --color-off-white: #ffffff;
+
+    /* Neutral */
+    --color-light-gray: #f8f8f8;
+    --color-pale-neutral: #f0f0f0;
+    --color-medium-gray: #808080;
+    --color-medium-dark-gray: #4b4847;
+    --color-light-border: #c7c6c5;
+
+    /* Status */
+    --color-error-red: #fa412d;
+    --color-warning-yellow: #ffff33;
+
+    /* Board */
+    --color-board-light: #ebecd0;
+    --color-board-dark: #739552;
+
+    /* Text */
+    --color-text-primary: #ffffff;
+    --color-text-secondary: rgba(255, 255, 255, 0.72);
+    --color-text-tertiary: #808080;
+
+    /* Typography */
+    --font-sans:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+        sans-serif;
+    --font-display:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+        sans-serif;
+
+    /* Border radius */
+    --radius-sm: 3px;
+    --radius-md: 5px;
+    --radius-lg: 10px;
+
+    /* Shadows */
+    --shadow-card: 0px 3px 8px 0px rgba(0, 0, 0, 0.3);
+    --shadow-elevated: 0px 6px 16px 0px rgba(0, 0, 0, 0.5);
+    --shadow-modal: 0px 12px 24px 0px rgba(0, 0, 0, 0.6);
+    --shadow-focus: 0px 0px 0px 3px rgba(115, 149, 82, 0.2);
+}
+
+/* Base styles */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background-color: var(--color-deep-charcoal);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selection color */
+::selection {
+    background-color: rgba(115, 149, 82, 0.3);
+    color: #ffffff;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-near-black);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-medium-dark-gray);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-medium-gray);
+}
