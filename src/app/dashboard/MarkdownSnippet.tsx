@@ -28,7 +28,7 @@ export default function MarkdownSnippet({ username }: Props) {
 
   const baseUrl = "https://github-readme-chess.vercel.app";
   const limitParam = limit ? `&limit=${limit}` : "";
-  const markdown = `[![ReadmeChess](${baseUrl}/api/chessboard?user=${username}${limitParam})](${baseUrl}/dashboard)`;
+  const markdown = `[![ReadmeChess](${baseUrl}/api/chessboard?user=${username}${limitParam})](${baseUrl}/play?user=${username})`;
 
   return (
     <div className="bg-near-black rounded-lg p-6 shadow-card mb-10">

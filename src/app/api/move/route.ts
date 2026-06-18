@@ -79,6 +79,11 @@ export async function GET(request: NextRequest) {
   // Re-check after potential join
   const isMyTurn = (turn === "w" && isWhite) || (turn === "b" && isBlack);
 
+  // Special case: "join" means just auto-join without making a move
+  if (square === "join") {
+    return NextResponse.redirect(new URL(`/play?gameId=${gameId}`, baseUrl));
+  }
+
   if (!isMyTurn) {
     return NextResponse.redirect(new URL(`/play?gameId=${gameId}`, baseUrl));
   }

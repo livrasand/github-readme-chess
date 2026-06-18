@@ -174,12 +174,25 @@ export default async function DashboardPage() {
                         })}
                       </p>
                     </div>
-                    <Link
-                      href={`/api/chessboard?gameId=${game.id}`}
-                      className="inline-flex items-center px-4 py-2 bg-chess-green text-white text-sm font-semibold rounded-md hover:bg-chess-green-hover active:bg-chess-green-active transition-colors leading-[15.99px]"
-                    >
-                      Ver tablero
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/api/chessboard?gameId=${game.id}`}
+                        className="inline-flex items-center px-4 py-2 bg-chess-green text-white text-sm font-semibold rounded-md hover:bg-chess-green-hover active:bg-chess-green-active transition-colors leading-[15.99px]"
+                      >
+                        Ver tablero
+                      </Link>
+                      <form
+                        action={`/api/games/delete?id=${game.id}`}
+                        method="POST"
+                      >
+                        <button
+                          type="submit"
+                          className="inline-flex items-center px-3 py-2 bg-red-600/20 text-red-400 text-sm font-semibold rounded-md hover:bg-red-600/30 transition-colors leading-[15.99px]"
+                        >
+                          Eliminar
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 );
               })}
@@ -214,14 +227,25 @@ export default async function DashboardPage() {
                       {game.white_player?.username || "Blancas"} vs{" "}
                       {game.black_player?.username || "Negras"}
                     </p>
+                    <p className="mt-1 text-xs text-text-tertiary leading-4">
+                      {new Date(game.created_at).toLocaleDateString("es-ES", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
                   </div>
-                  <p className="text-xs text-text-tertiary leading-4">
-                    {new Date(game.created_at).toLocaleDateString("es-ES", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </p>
+                  <form
+                    action={`/api/games/delete?id=${game.id}`}
+                    method="POST"
+                  >
+                    <button
+                      type="submit"
+                      className="inline-flex items-center px-3 py-2 bg-red-600/20 text-red-400 text-sm font-semibold rounded-md hover:bg-red-600/30 transition-colors leading-[15.99px]"
+                    >
+                      Eliminar
+                    </button>
+                  </form>
                 </div>
               ))}
             </div>

@@ -216,22 +216,21 @@ export function renderGameSetSVG(
   options: { baseUrl: string; config?: Partial<SVGConfig> },
 ): string {
   const config: SVGConfig = { ...DEFAULT_CONFIG, ...options.config };
-  const SQS = config.squareSize;
+  const SQS = 32; // Half of default 64 for compact README display
   const BOARD_SIZE = SQS * 8;
-  const PADDING = 28;
+  const PADDING = 14;
   const BOARD_TOTAL = BOARD_SIZE + PADDING * 2;
-  const LABEL_SPACE = 24;
-  const GAP = 20;
-  const TOTAL_WIDTH = BOARD_TOTAL;
+  const LABEL_SPACE = 18;
+  const GAP = 16;
 
-  const totalHeight =
-    games.length * (BOARD_TOTAL + LABEL_SPACE) + (games.length - 1) * GAP;
+  const TOTAL_WIDTH = games.length * BOARD_TOTAL + (games.length - 1) * GAP;
+  const TOTAL_HEIGHT = BOARD_TOTAL + LABEL_SPACE;
 
   const lines: string[] = [];
   const push = (s: string) => lines.push(s);
 
   push(
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${TOTAL_WIDTH} ${totalHeight}" width="${TOTAL_WIDTH}" height="${totalHeight}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${TOTAL_WIDTH} ${TOTAL_HEIGHT}" width="${TOTAL_WIDTH}" height="${TOTAL_HEIGHT}">`,
   );
 
   push(`<defs>
@@ -244,15 +243,14 @@ export function renderGameSetSVG(
       <stop offset="1" stop-color="#4b403b"/>
     </linearGradient>
     <style>
-      .label { font-family: '-apple-system', sans-serif; font-size: 10px; fill: ${config.fileRankColor}; text-anchor: middle; dominant-baseline: central; font-weight: 600; }
-      .turn-indicator { font-family: '-apple-system', sans-serif; font-size: 11px; fill: rgba(255,255,255,0.72); }
-      .vs-text { font-family: '-apple-system', sans-serif; font-size: 13px; fill: rgba(255,255,255,0.85); text-anchor: middle; font-weight: 600; }
+      .label { font-family: '-apple-system', sans-serif; font-size: 6px; fill: ${config.fileRankColor}; text-anchor: middle; dominant-baseline: central; font-weight: 600; }
+      .turn-indicator { font-family: '-apple-system', sans-serif; font-size: 7px; fill: rgba(255,255,255,0.72); }
+      .vs-text { font-family: '-apple-system', sans-serif; font-size: 8px; fill: rgba(255,255,255,0.85); text-anchor: middle; font-weight: 600; }
     </style>
   </defs>`);
 
-  let currentY = 0;
-
-  for (const game of games) {
+  for (let i = 0; i < games.length; i++) {
+    const game = games[i];
     const {
       board,
       turn,
@@ -264,8 +262,9 @@ export function renderGameSetSVG(
       blackPlayer,
     } = game;
     const isPlayerTurn = status === "active";
+    const offsetX = i * (BOARD_TOTAL + GAP);
 
-    push(`<g transform="translate(0, ${currentY})">`);
+    push(`<g transform="translate(${offsetX}, 0)">`);
 
     const boardOffsetX = PADDING;
     const boardOffsetY = PADDING;
@@ -281,7 +280,7 @@ export function renderGameSetSVG(
         const sq = `${file}${rank}`;
 
         push(
-          `<rect x="${x}" y="${y}" width="${SQS}" height="${SQS}" fill="${color}" rx="2" />`,
+          `<rect x="${x}" y="${y}" width="${SQS}" height="${SQS}" fill="${color}" rx="1" />`,
         );
 
         // Legal move indicators
@@ -289,11 +288,11 @@ export function renderGameSetSVG(
           const piece = board[row][col];
           if (piece) {
             push(
-              `<rect x="${x + 3}" y="${y + 3}" width="${SQS - 6}" height="${SQS - 6}" fill="none" stroke="${config.legalMoveCaptureColor}" stroke-width="3" rx="4" />`,
+              `<rect x="${x + 2}" y="${y + 2}" width="${SQS - 4}" height="${SQS - 4}" fill="none" stroke="${config.legalMoveCaptureColor}" stroke-width="2" rx="2" />`,
             );
           } else {
             push(
-              `<circle cx="${x + SQS / 2}" cy="${y + SQS / 2}" r="7" fill="${config.legalMoveDotColor}" />`,
+              `<circle cx="${x + SQS / 2}" cy="${y + SQS / 2}" r="4" fill="${config.legalMoveDotColor}" />`,
             );
           }
         }
@@ -317,8 +316,8 @@ export function renderGameSetSVG(
         if (isPlayerTurn && gameId) {
           const linkUrl = `${options.baseUrl}/api/move?gameId=${gameId}&square=${sq}`;
           push(`<a xlink:href="${sanitizeUrl(linkUrl)}" target="_top">
-          <rect x="${x}" y="${y}" width="${SQS}" height="${SQS}" fill="transparent" />
-        </a>`);
+            <rect x="${x}" y="${y}" width="${SQS}" height="${SQS}" fill="transparent" />
+          </a>`);
         }
       }
     }
@@ -326,13 +325,13 @@ export function renderGameSetSVG(
     // File labels (a-h) at bottom
     for (let col = 0; col < 8; col++) {
       const x = boardOffsetX + col * SQS + SQS / 2;
-      const y = boardOffsetY + 8 * SQS + 16;
+      const y = boardOffsetY + 8 * SQS + 10;
       push(`<text x="${x}" y="${y}" class="label">${FILES[col]}</text>`);
     }
 
     // Rank labels (1-8) on left
     for (let row = 0; row < 8; row++) {
-      const x = boardOffsetX - 12;
+      const x = boardOffsetX - 8;
       const y = boardOffsetY + row * SQS + SQS / 2;
       push(`<text x="${x}" y="${y}" class="label">${8 - row}</text>`);
     }
@@ -348,21 +347,19 @@ export function renderGameSetSVG(
     }
     const infoText = infoParts.join("  |  ");
     push(
-      `<text x="${TOTAL_WIDTH / 2}" y="12" class="turn-indicator" font-size="10">${infoText}</text>`,
+      `<text x="${BOARD_TOTAL / 2}" y="8" class="turn-indicator">${infoText}</text>`,
     );
 
     // "vs Opponent" label below the board
-    const vsY = BOARD_TOTAL + 8;
+    const vsY = BOARD_TOTAL + 5;
     const vsLabel = blackPlayer
       ? `${whitePlayer || "Blancas"} vs ${blackPlayer}`
       : `${whitePlayer || "Blancas"} vs Esperando...`;
     push(
-      `<text x="${TOTAL_WIDTH / 2}" y="${vsY}" class="vs-text">${vsLabel}</text>`,
+      `<text x="${BOARD_TOTAL / 2}" y="${vsY}" class="vs-text">${vsLabel}</text>`,
     );
 
     push(`</g>`);
-
-    currentY += BOARD_TOTAL + LABEL_SPACE + GAP;
   }
 
   push("</svg>");

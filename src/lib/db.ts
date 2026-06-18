@@ -236,6 +236,11 @@ export async function getGameById(gameId: string): Promise<GameRow | null> {
   return (rows as GameRow[])?.[0] ?? null;
 }
 
+export async function deleteGame(gameId: string): Promise<void> {
+  await sql`DELETE FROM moves WHERE game_id = ${gameId}`;
+  await sql`DELETE FROM games WHERE id = ${gameId}`;
+}
+
 export async function updateGameFields(
   gameId: string,
   fields: Record<string, unknown>,
