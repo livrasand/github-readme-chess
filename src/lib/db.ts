@@ -1,21 +1,48 @@
 import { neon, neonConfig } from "@neondatabase/serverless";
+import type { ThemeRow } from "@/types";
 
 // Node.js runtime only: undici (fetch) tries IPv6 first and times out when IPv6 is unreachable.
 // Use https.request with family:4 to force IPv4.
+// Guard: on Edge runtime, require() is not available and https does not exist.
 if (typeof require !== "undefined") {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const https = require("https") as typeof import("https");
-  neonConfig.fetchFunction = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url);
+  neonConfig.fetchFunction = (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Response> => {
+    const url = new URL(
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : (input as Request).url,
+    );
     return new Promise((resolve, reject) => {
-      const reqHeaders = Object.fromEntries(new Headers(init?.headers).entries());
+      const reqHeaders = Object.fromEntries(
+        new Headers(init?.headers).entries(),
+      );
       const req = https.request(
-        { hostname: url.hostname, port: 443, path: url.pathname + url.search, method: init?.method ?? "GET", headers: reqHeaders, family: 4 },
+        {
+          hostname: url.hostname,
+          port: 443,
+          path: url.pathname + url.search,
+          method: init?.method ?? "GET",
+          headers: reqHeaders,
+          family: 4,
+        },
         (res) => {
           const chunks: Buffer[] = [];
           res.on("data", (c: Buffer) => chunks.push(c));
-          res.on("end", () => resolve(new Response(Buffer.concat(chunks), { status: res.statusCode, headers: res.headers as HeadersInit })));
-        }
+          res.on("end", () =>
+            resolve(
+              new Response(Buffer.concat(chunks), {
+                status: res.statusCode,
+                headers: res.headers as HeadersInit,
+              }),
+            ),
+          );
+        },
       );
       req.on("error", reject);
       if (init?.body) req.write(init.body);
@@ -26,7 +53,7 @@ if (typeof require !== "undefined") {
 
 const rawUrl = process.env.DATABASE_URL!;
 const _parsedUrl = new URL(rawUrl);
-_parsedUrl.searchParams.delete('channel_binding');
+_parsedUrl.searchParams.delete("channel_binding");
 const connectionString = _parsedUrl.toString();
 const sql = neon(connectionString);
 
@@ -119,6 +146,20 @@ export async function getUserById(userId: number): Promise<UserRow | null> {
 // Games
 // ============================================================
 
+export async function createGame(fields: {
+  fen: string;
+  status: string;
+  turn: string;
+  playerWhite: number;
+}): Promise<string | null> {
+  const rows = await sql`
+    INSERT INTO games (fen, status, turn, player_white)
+    VALUES (${fields.fen}, ${fields.status}, ${fields.turn}, ${fields.playerWhite})
+    RETURNING id
+  `;
+  return (rows as { id: string }[])?.[0]?.id ?? null;
+}
+
 export async function getGameWithPlayers(
   gameId: string,
 ): Promise<GameWithPlayers | null> {
@@ -150,6 +191,25 @@ export async function getActiveGameByUsername(
     LIMIT 1
   `;
   return (rows as GameWithPlayers[])?.[0] ?? null;
+}
+
+export async function getActiveGamesByUsername(
+  username: string,
+  limit?: number,
+): Promise<GameWithPlayers[]> {
+  const rows = await sql`
+    SELECT g.*,
+      wu.username AS white_username, wu.avatar_url AS white_avatar_url,
+      bu.username AS black_username, bu.avatar_url AS black_avatar_url
+    FROM games g
+    LEFT JOIN users wu ON g.player_white = wu.id
+    LEFT JOIN users bu ON g.player_black = bu.id
+    WHERE (wu.username = ${username} OR bu.username = ${username})
+      AND g.status = 'active'
+    ORDER BY g.created_at DESC
+    ${limit !== undefined ? sql`LIMIT ${limit}` : sql``}
+  `;
+  return (rows as GameWithPlayers[]) ?? [];
 }
 
 export async function getGamesByUserId(
@@ -217,6 +277,145 @@ export async function createMove(fields: {
     INSERT INTO moves (game_id, from_square, to_square, san, fen_before, fen_after, player_id)
     VALUES (${fields.game_id}, ${fields.from_square}, ${fields.to_square}, ${fields.san}, ${fields.fen_before}, ${fields.fen_after}, ${fields.player_id})
   `;
+}
+
+// ============================================================
+// Themes
+// ============================================================
+
+export async function createTheme(fields: {
+  userId: number;
+  name: string;
+  lightColor?: string;
+  darkColor?: string;
+  selectedLightColor?: string;
+  selectedDarkColor?: string;
+  legalMoveDotColor?: string;
+  legalMoveCaptureColor?: string;
+  fileRankColor?: string;
+  isDefault?: boolean;
+}): Promise<ThemeRow | null> {
+  const cols = [
+    { key: "user_id", val: fields.userId },
+    { key: "name", val: fields.name },
+    { key: "light_color", val: fields.lightColor ?? "#EBECD0" },
+    { key: "dark_color", val: fields.darkColor ?? "#739552" },
+    {
+      key: "selected_light_color",
+      val: fields.selectedLightColor ?? "#B7C98D",
+    },
+    { key: "selected_dark_color", val: fields.selectedDarkColor ?? "#5D7A44" },
+    {
+      key: "legal_move_dot_color",
+      val: fields.legalMoveDotColor ?? "rgba(0,0,0,0.18)",
+    },
+    {
+      key: "legal_move_capture_color",
+      val: fields.legalMoveCaptureColor ?? "rgba(0,0,0,0.25)",
+    },
+    { key: "file_rank_color", val: fields.fileRankColor ?? "#4B4847" },
+    { key: "is_default", val: fields.isDefault ?? false },
+  ];
+
+  const keys = cols.map((c) => c.key);
+  const vals = cols.map((c) => c.val);
+
+  const placeholders = vals.map((_, i) => `$${i + 1}`);
+  const query = `INSERT INTO themes (${keys.join(", ")})
+    VALUES (${placeholders.join(", ")})
+    RETURNING *`;
+
+  const rows = await sql.query(query, vals);
+  return (rows as ThemeRow[])?.[0] ?? null;
+}
+
+export async function getThemesByUserId(userId: number): Promise<ThemeRow[]> {
+  const rows = await sql`
+    SELECT * FROM themes WHERE user_id = ${userId} ORDER BY created_at DESC
+  `;
+  return (rows as ThemeRow[]) ?? [];
+}
+
+export async function getThemeById(themeId: string): Promise<ThemeRow | null> {
+  const rows = await sql`
+    SELECT * FROM themes WHERE id = ${themeId}
+  `;
+  return (rows as ThemeRow[])?.[0] ?? null;
+}
+
+export async function updateTheme(
+  themeId: string,
+  fields: Record<string, unknown>,
+): Promise<void> {
+  const entries = Object.entries(fields);
+  if (entries.length === 0) return;
+
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, value] of entries) {
+    const dbKey = key.replace(/([A-Z])/g, "_$1").toLowerCase();
+    if (dbKey === "id" || dbKey === "created_at") continue;
+    setClauses.push(`${dbKey} = $${setClauses.length + 1}`);
+    values.push(value);
+  }
+
+  setClauses.push("updated_at = NOW()");
+  values.push(themeId);
+
+  const query = `UPDATE themes SET ${setClauses.join(", ")} WHERE id = $${values.length}`;
+  await sql.query(query, values);
+}
+
+export async function deleteTheme(themeId: string): Promise<void> {
+  await sql`DELETE FROM themes WHERE id = ${themeId}`;
+}
+
+export async function setDefaultTheme(
+  userId: number,
+  themeId: string | null,
+): Promise<void> {
+  if (themeId) {
+    await sql`UPDATE themes SET is_default = false WHERE user_id = ${userId}`;
+    await sql`UPDATE themes SET is_default = true WHERE id = ${themeId} AND user_id = ${userId}`;
+  } else {
+    await sql`UPDATE themes SET is_default = false WHERE user_id = ${userId}`;
+  }
+}
+
+export async function getDefaultThemeByUserId(
+  userId: number,
+): Promise<ThemeRow | null> {
+  const rows = await sql`
+    SELECT * FROM themes WHERE user_id = ${userId} AND is_default = true LIMIT 1
+  `;
+  return (rows as ThemeRow[])?.[0] ?? null;
+}
+
+export function themeRowToConfig(
+  theme: ThemeRow | null,
+): import("@/types").SVGConfig {
+  const base = {
+    squareSize: 64,
+    lightColor: "#EBECD0",
+    darkColor: "#739552",
+    selectedLightColor: "#B7C98D",
+    selectedDarkColor: "#5D7A44",
+    legalMoveDotColor: "rgba(0,0,0,0.18)",
+    legalMoveCaptureColor: "rgba(0,0,0,0.25)",
+    fileRankColor: "#4B4847",
+  };
+  if (!theme) return base;
+  return {
+    squareSize: 64,
+    lightColor: theme.light_color,
+    darkColor: theme.dark_color,
+    selectedLightColor: theme.selected_light_color,
+    selectedDarkColor: theme.selected_dark_color,
+    legalMoveDotColor: theme.legal_move_dot_color,
+    legalMoveCaptureColor: theme.legal_move_capture_color,
+    fileRankColor: theme.file_rank_color,
+  };
 }
 
 // ============================================================

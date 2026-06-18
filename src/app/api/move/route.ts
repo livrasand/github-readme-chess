@@ -8,19 +8,16 @@ import {
 import { parseFen, getLegalMoves, tryMove } from "@/lib/game-logic";
 import { renderEmptySVG } from "@/lib/chess-svg";
 
-export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/move?gameId=xxx&square=e2
  *
  * Maneja la interaccion de clic en el tablero:
+ * - Si el visitante no esta en la partida y hay hueco, se une como negro.
  * - Si no hay ficha seleccionada, selecciona la casilla clickeada (si tiene pieza del jugador que mueve).
  * - Si hay ficha seleccionada, intenta ejecutar el movimiento.
  * - Si el usuario no esta autenticado, redirige a GitHub OAuth.
- *
- * Si la peticion viene de GitHub (Accept: image/*), devuelve SVG.
- * Si viene de un navegador normal, redirige a la pagina de juego.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -28,8 +25,6 @@ export async function GET(request: NextRequest) {
   const square = searchParams.get("square");
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.nextUrl.origin;
-  const githubProfileUrl =
-    process.env.GITHUB_PROFILE_URL || "https://github.com";
 
   if (!gameId || !square) {
     return NextResponse.redirect(new URL("/?error=missing_params", baseUrl));
@@ -58,51 +53,76 @@ export async function GET(request: NextRequest) {
   }
 
   if (game.status !== "active") {
-    // Game is over, just redirect back
-    return NextResponse.redirect(githubProfileUrl);
+    return NextResponse.redirect(new URL(`/play?gameId=${gameId}`, baseUrl));
   }
 
   const { turn } = parseFen(game.fen);
-  const isWhite = game.player_white === userId;
-  const isBlack = game.player_black === userId;
+  let isWhite = game.player_white === userId;
+  let isBlack = game.player_black === userId;
 
-  // Check if it's this player's turn
+  // 3. Auto-join as black if not already a player and there's an open spot
+  if (!isWhite && !isBlack) {
+    const fields: Record<string, unknown> = {};
+    if (game.player_white === null) {
+      fields.player_white = userId;
+      isWhite = true;
+    } else if (game.player_black === null) {
+      fields.player_black = userId;
+      isBlack = true;
+    }
+
+    if (Object.keys(fields).length > 0) {
+      await updateGameFields(gameId, fields);
+    }
+  }
+
+  // Re-check after potential join
   const isMyTurn = (turn === "w" && isWhite) || (turn === "b" && isBlack);
 
   if (!isMyTurn) {
-    // Not your turn, redirect back
-    return NextResponse.redirect(githubProfileUrl);
+    return NextResponse.redirect(new URL(`/play?gameId=${gameId}`, baseUrl));
   }
 
-  // 3. Handle the click
+  // 4. Handle the click
   const currentSelection = game.selected_square;
 
   if (!currentSelection) {
-    // No hay seleccion actual -> intentar seleccionar la casilla clickeada
+    // No selection -> try to select the clicked square
     const { board } = parseFen(game.fen);
 
-    // Convert square to board coordinates
-    const fileIdx = square.charCodeAt(0) - 97; // a=0, h=7
-    const rankIdx = 8 - parseInt(square[1]); // 1=7, 8=0
+    const fileIdx = square.charCodeAt(0) - 97;
+    const rankIdx = 8 - parseInt(square[1]);
     const piece = board[rankIdx]?.[fileIdx];
 
-    if (piece) {
-      // Check if the piece belongs to the current player
-      const isWhitePiece = piece === piece.toUpperCase();
-      const playerOwnsPiece =
-        (turn === "w" && isWhitePiece) || (turn === "b" && !isWhitePiece);
-
-      if (playerOwnsPiece) {
-        // Check if the piece has any legal moves
-        const moves = getLegalMoves(game.fen, square);
-        if (moves.length > 0) {
-          // Select this square
-          await updateGameFields(gameId, { selected_square: square });
-        }
-      }
+    if (!piece) {
+      // Clicked on an empty square
+      return NextResponse.redirect(
+        new URL(`/play?gameId=${gameId}&error=empty`, baseUrl),
+      );
     }
 
-    // Redirect back after selection
+    const isWhitePiece = piece === piece.toUpperCase();
+    const playerOwnsPiece =
+      (turn === "w" && isWhitePiece) || (turn === "b" && !isWhitePiece);
+
+    if (!playerOwnsPiece) {
+      // Clicked on opponent's piece
+      return NextResponse.redirect(
+        new URL(`/play?gameId=${gameId}&error=not_yours`, baseUrl),
+      );
+    }
+
+    const moves = getLegalMoves(game.fen, square);
+    if (moves.length === 0) {
+      // Piece has no legal moves (blocked)
+      return NextResponse.redirect(
+        new URL(`/play?gameId=${gameId}&error=no_moves`, baseUrl),
+      );
+    }
+
+    await updateGameFields(gameId, { selected_square: square });
+
+    // Redirect after selection
     const accept = request.headers.get("accept") || "";
     if (accept.includes("image/") || accept.includes("text/html") === false) {
       return new Response(
@@ -115,14 +135,13 @@ export async function GET(request: NextRequest) {
         },
       );
     }
-    return NextResponse.redirect(githubProfileUrl);
+    return NextResponse.redirect(new URL(`/play?gameId=${gameId}`, baseUrl));
   }
 
-  // 4. Hay seleccion actual -> intentar ejecutar movimiento
+  // 5. Selection exists -> try to make the move
   const result = tryMove(game.fen, currentSelection, square);
 
   if (result.success && result.fen) {
-    // Update game state
     await updateGameFields(gameId, {
       fen: result.fen,
       turn: turn === "w" ? "b" : "w",
@@ -130,7 +149,6 @@ export async function GET(request: NextRequest) {
       selected_square: null,
     });
 
-    // Record the move
     await createMove({
       game_id: gameId,
       from_square: currentSelection,
@@ -138,11 +156,10 @@ export async function GET(request: NextRequest) {
       san: result.san || "",
       fen_before: game.fen,
       fen_after: result.fen,
-      player_id: userId!,
+      player_id: userId,
     });
 
-    // Redirect back to GitHub profile
-    return NextResponse.redirect(githubProfileUrl);
+    return NextResponse.redirect(new URL(`/play?gameId=${gameId}`, baseUrl));
   }
 
   // Invalid move - if clicking on another own piece, change selection
@@ -159,14 +176,17 @@ export async function GET(request: NextRequest) {
       const moves = getLegalMoves(game.fen, square);
       if (moves.length > 0) {
         await updateGameFields(gameId, { selected_square: square });
-      } else {
-        await updateGameFields(gameId, { selected_square: null });
+        return NextResponse.redirect(
+          new URL(`/play?gameId=${gameId}`, baseUrl),
+        );
       }
     }
   }
 
-  // Clear invalid selection
+  // Invalid move - clear selection and show error
   await updateGameFields(gameId, { selected_square: null });
 
-  return NextResponse.redirect(githubProfileUrl);
+  return NextResponse.redirect(
+    new URL(`/play?gameId=${gameId}&error=invalid_move`, baseUrl),
+  );
 }

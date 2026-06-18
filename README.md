@@ -3,12 +3,6 @@
   <h1>ReadmeChess</h1>
   <p><strong>Play chess directly on your GitHub profile README.</strong></p>
   <p>
-    <a href="#features">Features</a> •
-    <a href="#quick-start">Quick Start</a> •
-    <a href="#how-it-works">How It Works</a> •
-    <a href="#self-hosting">Self-Hosting</a>
-  </p>
-  <p>
     <a href="https://github-readme-chess.vercel.app/">
       <img src="https://img.shields.io/badge/try%20it-here-739552?style=flat-square" alt="Try it" />
     </a>
@@ -56,30 +50,6 @@ After signing in, your dashboard shows a ready-to-paste Markdown snippet:
 Paste that line into your GitHub profile `README.md`. Commit and push. Done.
 
 Now every visitor to your profile sees your chess board. They can click any square to make a move — the game updates live, right inside your README.
-
-## How It Works
-
-```
-Visitor clicks square
-        │
-        ▼
-GitHub profile ──► github-readme-chess.vercel.app/api/move?gameId=...&square=e2
-                        │
-                        ├── GitHub OAuth (if not authenticated)
-                        ├── chess.js validates the move
-                        ├── Game state saved to Neon (PostgreSQL)
-                        │
-                        ▼
-SVG rendered with updated board ──► Visitor sees the result
-```
-
-The entire interaction happens through URL-based requests:
-
-1. **`/api/chessboard?user=username`** — generates an SVG of the current game board for a user
-2. **`/api/move?gameId=...&square=e2`** — processes a square click (select piece, then select destination)
-3. **`/api/auth`** — GitHub OAuth flow for authentication
-
-No client-side JavaScript is needed. The board is a pure SVG that GitHub renders natively in READMEs.
 
 ## Credits
 

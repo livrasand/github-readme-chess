@@ -8,6 +8,7 @@ import {
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import MarkdownSnippet from "./MarkdownSnippet";
 
 export const dynamic = "force-dynamic";
 
@@ -80,34 +81,37 @@ export default async function DashboardPage() {
 
       <main className="max-w-5xl mx-auto px-6 pb-16">
         {/* Welcome */}
-        <div className="mb-10">
-          <h1 className="text-[36px] font-extrabold leading-10 text-white">
-            Dashboard
-          </h1>
-          <p className="mt-2 text-sm text-text-secondary leading-5">
-            Bienvenido,{" "}
-            <span className="text-chess-green font-semibold">
-              {user.username}
-            </span>
-          </p>
+        <div className="mb-10 flex items-start justify-between">
+          <div>
+            <h1 className="text-[36px] font-extrabold leading-10 text-white">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-sm text-text-secondary leading-5">
+              Bienvenido,{" "}
+              <span className="text-chess-green font-semibold">
+                {user.username}
+              </span>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <form action="/api/games/create" method="POST">
+              <button
+                type="submit"
+                className="inline-flex items-center px-4 py-2 bg-chess-green text-white text-sm font-semibold rounded-md hover:bg-chess-green-hover active:bg-chess-green-active transition-colors leading-[15.99px]"
+              >
+                Nueva partida
+              </button>
+            </form>
+            <Link
+              href="/dashboard/temas"
+              className="inline-flex items-center px-4 py-2 bg-transparent text-text-secondary text-sm font-semibold rounded-md border border-white/20 hover:bg-white/10 hover:text-white transition-all leading-[15.99px]"
+            >
+              Personalizar tablero
+            </Link>
+          </div>
         </div>
 
-        {/* Markdown Snippet Card */}
-        <div className="bg-near-black rounded-lg p-6 shadow-card mb-10">
-          <h2 className="text-sm font-extrabold text-white leading-4">
-            Tu codigo Markdown
-          </h2>
-          <p className="mt-2 text-sm text-text-secondary leading-5 mb-4">
-            Copia esto en tu{" "}
-            <code className="bg-deep-charcoal text-bright-mint px-1.5 py-0.5 rounded-sm text-xs font-mono">
-              README.md
-            </code>
-            :
-          </p>
-          <pre className="bg-deep-charcoal text-bright-mint p-4 rounded-md text-sm overflow-x-auto border border-white/5 font-mono">
-            {`[![ReadmeChess](https://github-readme-chess.vercel.app/api/chessboard?user=${user.username})](https://github-readme-chess.vercel.app/dashboard)`}
-          </pre>
-        </div>
+        <MarkdownSnippet username={user.username} />
 
         {/* Active Games */}
         <div className="mb-10">
@@ -123,9 +127,17 @@ export default async function DashboardPage() {
               <p className="text-sm text-text-secondary leading-5">
                 No tienes partidas activas.
               </p>
-              <p className="mt-1 text-sm text-text-tertiary leading-5">
+              <p className="mt-1 text-sm text-text-tertiary leading-5 mb-4">
                 Comparte tu codigo Markdown para que otros jueguen contigo.
               </p>
+              <form action="/api/games/create" method="POST" className="inline">
+                <button
+                  type="submit"
+                  className="inline-flex items-center px-4 py-2 bg-chess-green text-white text-sm font-semibold rounded-md hover:bg-chess-green-hover active:bg-chess-green-active transition-colors leading-[15.99px]"
+                >
+                  Crear primera partida
+                </button>
+              </form>
             </div>
           ) : (
             <div className="space-y-3">

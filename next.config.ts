@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Allow SVGs from the API routes
   images: {
+    localPatterns: [
+      {
+        pathname: "/api/chessboard",
+        search: "*",
+      },
+    ],
     remotePatterns: [
       {
         protocol: "https",

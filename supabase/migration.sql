@@ -54,6 +54,25 @@ CREATE TABLE IF NOT EXISTS moves (
 
 CREATE INDEX IF NOT EXISTS idx_moves_game_id ON moves(game_id);
 
+-- 5. Temas personalizados para tableros
+CREATE TABLE IF NOT EXISTS themes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  light_color TEXT NOT NULL DEFAULT '#EBECD0',
+  dark_color TEXT NOT NULL DEFAULT '#739552',
+  selected_light_color TEXT NOT NULL DEFAULT '#B7C98D',
+  selected_dark_color TEXT NOT NULL DEFAULT '#5D7A44',
+  legal_move_dot_color TEXT NOT NULL DEFAULT 'rgba(0,0,0,0.18)',
+  legal_move_capture_color TEXT NOT NULL DEFAULT 'rgba(0,0,0,0.25)',
+  file_rank_color TEXT NOT NULL DEFAULT '#4B4847',
+  is_default BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_themes_user_id ON themes(user_id);
+
 -- ============================================================
 -- Funcion para limpiar sesiones expiradas (opcional, via cron)
 -- ============================================================
